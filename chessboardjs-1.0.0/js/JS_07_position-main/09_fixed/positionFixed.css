@@ -1,0 +1,13 @@
+#parentDiv {
+  background-color: yellow;
+}
+
+.clsDiv {
+  background-color: green;
+}
+
+#targetDiv {
+  background-color: red;
+  position: fixed;
+}
+

@@ -1,0 +1,27 @@
+#parentDiv {
+  background-color: yellow;
+}
+
+.clsDiv {
+  background-color: green;
+}
+
+#targetDiv {
+  background-color: red;
+  position: sticky;
+  top: 2em;
+  left: 2em;
+  width: 10em;
+}
+
+#parentDiv2 {
+  background-color: blue;
+}
+
+#targetDiv2 {
+  background-color: red;
+  position: sticky;
+  top: 12em;
+  left: 2em;
+  width: 10em;
+}

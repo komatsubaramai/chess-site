@@ -1,0 +1,146 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Chessboard with FEN</title>
+  <script src="js/jquery-3.7.1.min.js"></script>
+  <link rel="stylesheet" href="css/chessboard-1.0.0.min.css">
+  <script src="js/chessboard-1.0.0.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    button{width: 300px; height: 100px;}
+    textarea{width: 300px; height: 100px;}
+  </style>
+
+</head>
+<body>
+  <div style="display: flex; gap: 30px;">
+    <div>
+      <div id="myBoard" style="width: 400px;"></div>
+      <p id="output"></p>
+    </div>
+    <div>
+      <canvas id="evalChart" width="800" height="400"></canvas>
+    </div>
+  </div>
+
+<button id="setStartBtn" type="button" name="name" value="値">Start Position</button>
+<button id="showtextBtn" type="button" name="name" value="値">fenよみこみ</button>
+<textarea id="settext" name="example" cols="50" rows="100"></textarea>
+<button id="prevBtn">戻る</button>
+<button id="nextBtn">次へ</button>
+<p id="output"></p>
+<script>
+var fenList = []
+var currentIndex = 0
+var ruyLopez = 'r1bqkbnr/pppp1ppp/2n5/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R'
+var board = Chessboard('myBoard', {position: 'start'});
+
+//スタートボタン：初期盤面に戻す
+$('#setStartBtn').on('click', function () {
+  board.start();
+});
+
+//表示ボタン：配列に読み込み
+$('#showtextBtn').on('click', function () {
+  var inputVal = $('#settext').val().trim();
+  iv = inputVal.split('\n').filter(line => line.trim() !== '');
+  fenList = iv;
+  currentIndex = 0;
+  if (fenList.length > 0) {
+    board.position(fenList[currentIndex]);
+    $('#output').text(`手数: ${currentIndex + 1} / ${fenList.length}`);}
+});
+
+//一手進むボタン
+$('#nextBtn').on('click', function () {
+  if (currentIndex < fenList.length - 1) {
+    currentIndex++;
+    board.position(fenList[currentIndex]);
+    $('#output').text(`手数: ${currentIndex + 1} / ${fenList.length}`);}
+});
+
+//一手戻るボタン
+$('#prevBtn').on('click', function () {
+  if (currentIndex > 0) {
+    currentIndex--;
+    board.position(fenList[currentIndex]);
+    $('#output').text(`手数: ${currentIndex + 1} / ${fenList.length}`);}
+});
+
+var evalChart;  //グラフ用の変数
+var cpValues = [];  //評価値(cp)の配列
+var linenum = -1;
+//配列に読み込み
+$('#showtextBtn').on('click', function () {
+  var inputVal = $('#settext').val().trim();
+  var lines = inputVal.split('\n').filter(line => line.trim() !== '');
+  fenList = [];
+  cpValues = [];
+  legalList = [[]];
+  legalcpValues =[[]];
+  legalMove = [[]]
+  lines.forEach(line => {
+    var parts = line.split(' cp ');
+    if (lines.length === 10) {//実際の指し手
+      if (parts.length === 2) {
+        linenum = linenum + 1;
+        fenList.push(parts[0].trim());
+        cpValues.push(parseInt(parts[1].trim()));}
+    }
+    else if (lines.length === 12) {//合法手を指した場合
+      if (parts.length === 2) {
+        legalList[linenum].push(parts[0].trim());
+        legalcpValues[linenum].push(parseInt(parts[1].trim()));}
+    }
+    else {
+      legalMove[linenum].push(parts[0].trim());//合法手
+    }
+  });
+  currentIndex = 0;
+  if (fenList.length > 0) {
+    board.position(fenList[currentIndex]);
+    $('#output').text(`手数: ${currentIndex + 1} / ${fenList.length}`);
+    updateChart(cpValues);}
+});
+
+//グラフ更新
+function updateChart(values) {
+  if (evalChart) evalChart.destroy(); //既にあるグラフは削除
+  var ctx = document.getElementById('evalChart').getContext('2d');
+  evalChart = new Chart(ctx, {
+    type: 'line', //折れ線グラフ
+    data: {
+      labels: values.map((_, i) => i + 1), //X軸（手数 1, 2, 3,...）
+      datasets: [{
+        label: '評価値 (cp)',
+        data: values,  //Y軸（評価値）
+        borderColor: 'blue',
+        //backgroundColor: 'lightblue',
+        //fill: true,
+        tension: 0.0  //直線
+      }]
+    },
+    options: {
+      scales: {
+        x: {title: {display: true, text: '手数'}},
+        y: {title: {display: true, text: 'cp評価値'}}},
+      plugins: {
+        tooltip: {
+          callbacks: {//ツールチップに評価値と手数を表示
+            label: function(context) {return `手数 ${context.dataIndex + 1}: cp ${context.parsed.y}`;}}}},
+      onClick: (e, elements) => {//グラフの点をクリックしたら盤面をその手に変更
+        if (elements.length > 0) {
+          const index = elements[0].index;
+          currentIndex = index;
+          board.position(fenList[currentIndex]);
+          $('#output').text(`手数: ${currentIndex + 1} / ${fenList.length}`);}}
+    }
+  });
+}//function updateChart(values) {
+
+
+</script>
+</body>
+</html>

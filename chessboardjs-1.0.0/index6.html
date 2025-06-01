@@ -1,0 +1,313 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Chessboard with FEN</title>
+  <script src="js/jquery-3.7.1.min.js"></script>
+  <link rel="stylesheet" href="css/chessboard-1.0.0.min.css">
+  <script src="js/chessboard-1.0.0.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src = "js\JS_07_position-main\04_relative\positionRelative2.js"></script>
+
+  <style>
+    button { width: 200px; height: 100px; }
+    textarea { width: 200px; height: 200px; }
+  </style>
+</head>
+<body>
+  <div style="display: flex; gap: 30px;">
+    <div>
+      <div id="myBoard" style="width: 400px;"></div>
+      <p id="output"></p>
+    </div>
+    <div>
+      <canvas id="evalChart" width="800" height="400"></canvas>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 10px;">
+        <textarea id="settext"></textarea>
+        <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px;">
+            <button id="setStartBtn">初期盤面に戻す</button>
+            <button id="showtextBtn">fen読み込み</button>
+            <button id="prevBtn">戻る</button>
+            <button id="nextBtn">次へ</button>
+        </div>
+    </div>
+  </div>
+  <p id="output"></p>
+
+<script>
+  var fenList = [];
+  var cpValues = [];
+  var legalList = [[]];
+  var legalMove = [[]];
+  var legalcpValues =[[]];
+  var actualMoves = [];
+  var currentIndex = 0;
+  var linenum = 0;
+  var board = Chessboard('myBoard', {position: 'start'});
+  var evalChart;
+
+  function legalmoveposition(num) {
+    const files = ['a','b','c','d','e','f','g','h'];
+    const file = files[num % 8];
+    const rank = Math.floor(num / 8) + 1;
+    return file + rank;
+  }
+
+  $('#setStartBtn').on('click', function () {
+    board.start();
+  });
+
+  $('#showtextBtn').on('click', function () {
+  const inputVal = $('#settext').val().trim();
+  const lines = inputVal.split('\n').filter(line => line.trim() !== '');
+  fenList = [];
+  cpValues = [];
+  legalList = [[]];
+  legalMove = [[]];
+  legalcpValues = [[]];
+  actualMoves = [];
+  linenum = 0;
+
+  lines.forEach(line => {
+    const iv = line.trim().split(' ');
+    const parts = line.split(' cp ');
+    
+    if (iv.length === 11) {
+      // FEN + cp行
+      fenList.push(parts[0].trim());
+      let cp = parseInt(iv[5].trim());
+      if (linenum % 2 === 0) cp = -cp;
+      cpValues.push(cp);
+
+      // このFENに対応する合法手群を格納する場所を準備
+      legalList[linenum] = [];
+      legalMove[linenum] = [];
+      legalcpValues[linenum] = [];
+
+      linenum++;
+    } else if (iv.length === 12) {
+      // 合法手FEN + cp行（現手番に対応する合法手の1つ）
+      legalList[linenum]?.push(parts[0].trim());
+      let legalcp = parseInt(iv[7].trim());
+      if (linenum % 2 === 1) legalcp = -legalcp;
+      legalcpValues[linenum]?.push(legalcp);
+    } else if (line.startsWith('move>')) {
+      const match = line.match(/move> (\d+)->(\d+)/);
+      if (match) {
+        const from = parseInt(match[1]);
+        const to = parseInt(match[2]);
+        const moveStr = `${legalmoveposition(from)} → ${legalmoveposition(to)}`;
+        legalMove[linenum]?.push(moveStr);
+      }
+    }
+  });
+
+
+    // 実際の手を合法手と照合して move を割り当て
+    // 実際の手を合法手と照合して move を割り当て
+    actualMoves = [];
+    for (let i = 0; i < fenList.length; i++) {
+    if (i === 0) {
+        // 初期盤面には対応する手はない
+        actualMoves[i] = '';
+        continue;
+    }
+
+  const actualFen = fenList[i];
+  const legalFens = legalList[i - 1] || [];
+  const legalMoves = legalMove[i - 1] || [];
+  let moveFound = '';
+  for (let j = 0; j < legalFens.length; j++) {
+    if (legalFens[j] === actualFen) {
+      moveFound = legalMoves[j];
+      break;
+    }
+  }
+  actualMoves[i] = moveFound || '(不明)';
+}
+
+
+    currentIndex = 0;
+    if (fenList.length > 0) {
+      board.position(fenList[currentIndex]);
+      $('#output').text(`手数: ${currentIndex + 1} / ${fenList.length}`);
+      updateChart(cpValues);
+    }
+  });
+
+  $('#nextBtn').on('click', function () {
+    if (currentIndex < fenList.length - 1) {
+      currentIndex++;
+      board.position(fenList[currentIndex]);
+      $('#output').text(`手数: ${currentIndex + 1} / ${fenList.length}`);
+      updateCurrentPoint();
+    }
+  });
+
+  $('#prevBtn').on('click', function () {
+    if (currentIndex > 0) {
+      currentIndex--;
+      board.position(fenList[currentIndex]);
+      $('#output').text(`手数: ${currentIndex + 1} / ${fenList.length}`);
+      updateCurrentPoint();
+    }
+  });
+
+  function updateCurrentPoint() {
+    if (!evalChart) return;
+    const dataset = evalChart.data.datasets.find(ds => ds.label === '現在の指し手');
+    if (dataset) {
+      dataset.data = [{
+        x: currentIndex + 1,
+        y: cpValues[currentIndex]
+      }];
+      evalChart.update('none');
+    }
+  }
+
+  function updateChart(values) {
+    if (evalChart) evalChart.destroy();
+    const ctx = document.getElementById('evalChart').getContext('2d');
+
+    const allPoints = values.map((cp, i) => ({
+      x: i + 1,
+      y: cp,
+      move: actualMoves[i] || ''
+    }));
+
+    const whitePoints = [], blackPoints = [];
+    const whiteLegalPoints = [], blackLegalPoints = [];
+
+    values.forEach((cp, i) => {
+      const point = { x: i + 1, y: cp, move: actualMoves[i] || '' };
+      if (i % 2 === 0) {
+        whitePoints.push(point);
+      } else {
+        blackPoints.push(point);
+      }
+    });
+
+    legalcpValues.forEach((cpList, i) => {
+      cpList.forEach((cp, j) => {
+        const move = legalMove[i]?.[j] || '不明な手';
+        const point = { x: i + 1, y: cp, move: move };
+        if (i % 2 === 0) {
+          whiteLegalPoints.push(point);
+        } else {
+          blackLegalPoints.push(point);
+        }
+      });
+    });
+
+    const currentPoint = [{
+      x: currentIndex + 1,
+      y: values[currentIndex]
+    }];
+
+    evalChart = new Chart(ctx, {
+      type: 'scatter',
+      data: {
+        datasets: [
+          {
+            label: '評価値（全体）',
+            type: 'line',
+            data: allPoints,
+            borderColor: 'blue',
+            backgroundColor: 'blue',
+            tension: 0.1,
+            hidden: false
+          },
+          {
+            label: '評価値（白手番）',
+            type: 'line',
+            data: whitePoints,
+            borderColor: 'skyblue',
+            backgroundColor: 'skyblue',
+            tension: 0.1,
+            hidden: true
+          },
+          {
+            label: '評価値（黒手番）',
+            type: 'line',
+            data: blackPoints,
+            borderColor: 'orange',
+            backgroundColor: 'orange',
+            tension: 0.1,
+            hidden: true
+          },
+          {
+            label: '合法手（白）',
+            type: 'scatter',
+            data: whiteLegalPoints,
+            backgroundColor: 'skyblue',
+            borderColor: 'navy',
+            borderWidth: 0.5,
+            pointRadius: 4,
+            pointStyle: 'circle'
+          },
+          {
+            label: '合法手（黒）',
+            type: 'scatter',
+            data: blackLegalPoints,
+            backgroundColor: 'tomato',
+            borderColor: 'darkred',
+            borderWidth: 0.5,
+            pointRadius: 4,
+            pointStyle: 'circle'
+          },
+          {
+            label: '現在の指し手',
+            type: 'scatter',
+            data: currentPoint,
+            backgroundColor: 'red',
+            borderColor: 'darkred',
+            borderWidth: 2,
+            pointRadius: 6
+          }
+        ]
+      },
+      options: {
+        scales: {
+          x: {
+            title: { display: true, text: '手数' },
+            ticks: { stepSize: 1 }
+          },
+          y: {
+            title: { display: true, text: 'cp評価値' }
+          }
+        },
+        plugins: {
+          tooltip: {
+            callbacks: {
+              label: function (context) {
+                const move = context.raw?.move || '';
+                const cp = context.parsed.y;
+                if (context.dataset.label.includes('合法手') || context.dataset.label === '評価値（全体）') {
+                  return `${context.dataset.label}: ${move ? move + ' ' : ''}(cp: ${cp})`;
+                } else {
+                  return `${context.dataset.label}: cp ${cp}`;
+                }
+              }
+            }
+          },
+          legend: {
+            display: true,
+            labels: {
+              usePointStyle: true
+            }
+          }
+        },
+        onClick: (e, elements) => {
+          const index = elements[0]?.element?.$context?.parsed?.x;
+          if (index && fenList[index - 1]) {
+            currentIndex = index - 1;
+            board.position(fenList[currentIndex]);
+            $('#output').text(`手数: ${currentIndex + 1} / ${fenList.length}`);
+            updateCurrentPoint();
+          }
+        }
+      }
+    });
+  }
+</script>

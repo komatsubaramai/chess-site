@@ -1,0 +1,5 @@
+rnb1kbnr/ppp1pppp/8/4q3/8/2N5/PPPPNPPP/R1BQKB1R b - - 1 1 cp -64
+rnb1kbnr/ppp1pppp/8/4q3/8/8/PPPPNPPP/R1BQKBNR b - - 1 1 cp -24
+rnb1kbnr/ppp1pppp/8/4q3/4N3/8/PPPP1PPP/R1BQKBNR b - - 1 1 cp 461
+rnb1kbnr/ppp1pppp/8/4q3/8/2N5/PPPPBPPP/R1BQK1NR b - - 1 1 cp -95
+rnb1kbnr/ppp1pppp/8/4q3/8/2N5/PPPPQPPP/R1B1KBNR b - - 1 1 cp -28
