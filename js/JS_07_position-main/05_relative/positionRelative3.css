@@ -1,0 +1,16 @@
+#parentDiv {
+  background-color: yellow;
+}
+
+.clsDiv {
+  background-color: green;
+}
+
+#targetDiv {
+  background-color: red;
+  position: relative;
+  top: 2em;
+  left: 2em;
+  bottom: 2em;
+  right: 2em;
+}

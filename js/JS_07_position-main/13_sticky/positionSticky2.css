@@ -1,0 +1,15 @@
+#parentDiv {
+  background-color: yellow;
+}
+
+.clsDiv {
+  background-color: green;
+}
+
+#targetDiv {
+  background-color: red;
+  position: sticky;
+  top: 5em;
+  left: 2em;
+}
+
